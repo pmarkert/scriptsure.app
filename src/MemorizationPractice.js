@@ -3,79 +3,115 @@ import React, { useState, useEffect } from "react";
 import ProgressBar from "./ProgressBar";
 
 function MemorizationPractice({ passage, exitPractice }) {
-  const [words, setWords] = useState([]);
+  const [segments, setSegments] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [revealedWords, setRevealedWords] = useState([]);
+  const [revealedSegments, setRevealedSegments] = useState([]);
   const [incorrectGuesses, setIncorrectGuesses] = useState(0);
   const [flashColor, setFlashColor] = useState(null);
 
   useEffect(() => {
-    // Split passage into words, preserving punctuation as separate tokens
-    const tokens = passage.match(/[\w']+|[.,!?;:\-\[\]()\d]+/g);
-    setWords(tokens);
-    setRevealedWords(
-      tokens.map((token, index) => (isNonWord(token) ? token : ""))
-    );
-  }, [passage]);
+    const tokenizePassage = (passage) => {
+      let segments = [];
+      let regex = /\b\w+\b[^\w\s]*/g;
+      let match;
+      let lastIndex = 0;
 
-  const isNonWord = (token) => {
-    return /^[^\w']+$/g.test(token);
-  };
+      while ((match = regex.exec(passage)) !== null) {
+        let start = match.index;
+        let end = regex.lastIndex;
+
+        if (start > lastIndex) {
+          let preText = passage.slice(lastIndex, start);
+          segments.push({ type: "pre", text: preText });
+        }
+
+        let word = match[0];
+        segments.push({ type: "word", text: word });
+
+        lastIndex = end;
+      }
+
+      if (lastIndex < passage.length) {
+        let preText = passage.slice(lastIndex);
+        segments.push({ type: "pre", text: preText });
+      }
+
+      return segments;
+    };
+
+    const processedSegments = tokenizePassage(passage);
+    setSegments(processedSegments);
+
+    const initialRevealedSegments = processedSegments.map((segment) =>
+      segment.type === "pre" ? segment.text : ""
+    );
+    setRevealedSegments(initialRevealedSegments);
+    setCurrentIndex(0);
+    setIncorrectGuesses(0);
+  }, [passage]);
 
   const handleInput = (e) => {
     const inputChar = e.key.toLowerCase();
-    const currentWord = words[currentIndex];
 
-    if (isNonWord(currentWord)) {
-      // Automatically reveal non-word tokens
-      revealWord(currentIndex);
-      setCurrentIndex((prev) => prev + 1);
+    if (!/^[a-zA-Z]$/.test(inputChar)) {
       return;
     }
 
-    if (inputChar === currentWord[0].toLowerCase()) {
-      revealWord(currentIndex);
+    let index = currentIndex;
+    while (index < segments.length && segments[index].type !== "word") {
+      index++;
+    }
+
+    if (index >= segments.length) {
+      return;
+    }
+
+    const currentWordSegment = segments[index];
+    const firstLetter = currentWordSegment.text[0].toLowerCase();
+
+    if (inputChar === firstLetter) {
+      setRevealedSegments((prev) =>
+        prev.map((seg, i) => (i === index ? currentWordSegment.text : seg))
+      );
       setIncorrectGuesses(0);
-      setCurrentIndex((prev) => prev + 1);
+      setCurrentIndex(index + 1);
     } else {
-      // Incorrect guess handling
       setIncorrectGuesses((prev) => prev + 1);
       flashScreen("red");
       if (incorrectGuesses + 1 >= 3) {
-        revealWord(currentIndex, true); // Highlight in red
+        setRevealedSegments((prev) =>
+          prev.map((seg, i) =>
+            i === index
+              ? `<span style="color: red;">${currentWordSegment.text}</span>`
+              : seg
+          )
+        );
         setIncorrectGuesses(0);
-        setCurrentIndex((prev) => prev + 1);
+        setCurrentIndex(index + 1);
       }
     }
     e.preventDefault();
   };
 
-  const revealWord = (index, highlightIncorrect = false) => {
-    setRevealedWords((prev) =>
-      prev.map((word, i) =>
-        i === index
-          ? highlightIncorrect
-            ? `<span style="color: red;">${words[i]}</span>`
-            : words[i]
-          : word
-      )
-    );
-  };
-
   const flashScreen = (color) => {
     setFlashColor(color);
-    setTimeout(() => setFlashColor(null), 200); // Pause input briefly
+    setTimeout(() => setFlashColor(null), 200);
   };
 
   useEffect(() => {
-    // Focus on the input when component mounts
     document.addEventListener("keydown", handleInput);
     return () => {
       document.removeEventListener("keydown", handleInput);
     };
   });
 
-  const progressPercentage = ((currentIndex / words.length) * 100).toFixed(2);
+  const totalWords = segments.filter(
+    (segment) => segment.type === "word"
+  ).length;
+  const revealedWords = revealedSegments.filter(
+    (seg, index) => segments[index].type === "word" && seg !== ""
+  ).length;
+  const progressPercentage = ((revealedWords / totalWords) * 100).toFixed(2);
 
   return (
     <div
@@ -91,7 +127,7 @@ function MemorizationPractice({ passage, exitPractice }) {
           padding: "10px",
           minHeight: "100px",
         }}
-        dangerouslySetInnerHTML={{ __html: revealedWords.join(" ") }}
+        dangerouslySetInnerHTML={{ __html: revealedSegments.join("") }}
       ></div>
       <ProgressBar progress={progressPercentage} />
       <button onClick={exitPractice}>Exit Practice</button>

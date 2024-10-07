@@ -11,6 +11,9 @@ function App() {
   const [passages, setPassages] = useState([]);
   const [selectedPassageIndex, setSelectedPassageIndex] = useState(null);
   const [showImporter, setShowImporter] = useState(false);
+  const [passageToEdit, setPassageToEdit] = useState(null);
+  const [editIndex, setEditIndex] = useState(null);
+
   const { theme, toggleTheme } = useContext(ThemeContext);
 
   useEffect(() => {
@@ -46,6 +49,26 @@ function App() {
     setShowImporter(false);
   };
 
+  const editPassage = (index) => {
+    setPassageToEdit(passages[index]);
+    setEditIndex(index);
+  };
+
+  const updatePassage = (updatedPassage) => {
+    const updatedPassages = [...passages];
+    updatedPassages[editIndex] = updatedPassage;
+    setPassages(updatedPassages);
+    localStorage.setItem("passages", JSON.stringify(updatedPassages));
+    // Reset editing state
+    setPassageToEdit(null);
+    setEditIndex(null);
+  };
+
+  const cancelEdit = () => {
+    setPassageToEdit(null);
+    setEditIndex(null);
+  };
+
   return (
     <div className="container">
       <button className="toggle-theme-btn" onClick={toggleTheme}>
@@ -56,12 +79,20 @@ function App() {
         <>
           {!showImporter ? (
             <>
-              <TextInput addPassage={addPassage} />
-              <button onClick={openImporter}>Import Passage</button>
+              <TextInput
+                addPassage={addPassage}
+                passageToEdit={passageToEdit}
+                updatePassage={updatePassage}
+                cancelEdit={cancelEdit}
+              />
+              {!passageToEdit && (
+                <button onClick={openImporter}>Import Passage</button>
+              )}
               <PassageSelector
                 passages={passages}
                 selectPassage={selectPassage}
                 deletePassage={deletePassage}
+                editPassage={editPassage}
               />
             </>
           ) : (

@@ -1,38 +1,58 @@
 // TextInput.js
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
-function TextInput({ addPassage }) {
-  const [text, setText] = useState("");
+function TextInput({ addPassage, passageToEdit, updatePassage, cancelEdit }) {
   const [name, setName] = useState("");
+  const [text, setText] = useState("");
 
-  const handleSubmit = () => {
-    if (text.trim() && name.trim()) {
-      addPassage({ name: name.trim(), text: text.trim() });
-      setText("");
-      setName("");
+  useEffect(() => {
+    if (passageToEdit) {
+      setName(passageToEdit.name);
+      setText(passageToEdit.text);
     } else {
-      alert("Please provide both a name and text for the passage.");
+      setName("");
+      setText("");
     }
+  }, [passageToEdit]);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (name.trim() === "" || text.trim() === "") {
+      alert("Please enter a name and text for the passage.");
+      return;
+    }
+
+    if (passageToEdit) {
+      updatePassage({ name: name.trim(), text: text.trim() });
+    } else {
+      addPassage({ name: name.trim(), text: text.trim() });
+    }
+
+    setName("");
+    setText("");
   };
 
   return (
     <div>
-      <h2>Add a New Passage</h2>
-      <input
-        type="text"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder="Passage Name"
-      />
-      <br />
-      <textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        rows={5}
-        placeholder="Paste your text here"
-      />
-      <br />
-      <button onClick={handleSubmit}>Save Passage</button>
+      <h2>{passageToEdit ? "Edit Passage" : "Add New Passage"}</h2>
+      <form onSubmit={handleSubmit}>
+        <input
+          type="text"
+          placeholder="Passage Name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
+        <textarea
+          placeholder="Passage Text"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          rows={10}
+        ></textarea>
+        <button type="submit">
+          {passageToEdit ? "Save Changes" : "Add Passage"}
+        </button>
+        {passageToEdit && <button onClick={cancelEdit}>Cancel</button>}
+      </form>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 // BiblePassageImporter.js
 import React, { useState, useEffect } from "react";
 
-function BiblePassageImporter({ addPassage }) {
+function BiblePassageImporter({ addPassage, closeImporter }) {
   const [apiKey, setApiKey] = useState("");
   const [bibles, setBibles] = useState([]);
   const [selectedBible, setSelectedBible] = useState("");
@@ -35,6 +35,35 @@ function BiblePassageImporter({ addPassage }) {
       console.error(err);
       return null;
     }
+  };
+
+  // Load API key from localStorage on mount
+  useEffect(() => {
+    const storedApiKey = localStorage.getItem("apiKey");
+    if (storedApiKey) {
+      setApiKey(storedApiKey);
+    }
+  }, []);
+
+  // Save API key to localStorage when it changes
+  useEffect(() => {
+    if (apiKey.trim() !== "") {
+      localStorage.setItem("apiKey", apiKey);
+    }
+  }, [apiKey]);
+
+  // Logout function
+  const handleLogout = () => {
+    localStorage.removeItem("apiKey");
+    setApiKey("");
+    setBibles([]);
+    setSelectedBible("");
+    setBooks([]);
+    setSelectedBook("");
+    setChapters([]);
+    setSelectedChapter("");
+    setPassageText("");
+    setError("");
   };
 
   // Fetch Bibles when API key is provided
@@ -162,30 +191,41 @@ function BiblePassageImporter({ addPassage }) {
     <div>
       <h2>Import Passage from Bible API</h2>
       {error && <p style={{ color: "red" }}>{error}</p>}
-      <div>
-        <label>
-          API Key:
-          <input
-            type="text"
-            value={apiKey}
-            onChange={(e) => {
-              setApiKey(e.target.value);
-              setBibles([]);
-              setSelectedBible("");
-              setBooks([]);
-              setSelectedBook("");
-              setChapters([]);
-              setSelectedChapter("");
-              setPassageText("");
-              setError("");
-            }}
-            placeholder="Enter your API key"
-            style={{ width: "100%" }}
-          />
-        </label>
-      </div>
-      {apiKey.trim() !== "" && (
+
+      {apiKey.trim() === "" ? (
+        // Show API key input for authentication
+        <div>
+          <label>
+            API Key:
+            <input
+              type="text"
+              value={apiKey}
+              onChange={(e) => {
+                setApiKey(e.target.value.trim());
+                // Clear any previous data
+                setBibles([]);
+                setSelectedBible("");
+                setBooks([]);
+                setSelectedBook("");
+                setChapters([]);
+                setSelectedChapter("");
+                setPassageText("");
+                setError("");
+              }}
+              placeholder="Enter your API key"
+              style={{ width: "100%" }}
+            />
+          </label>
+        </div>
+      ) : (
+        // Show the passage importer UI
         <>
+          <p>
+            Logged in with API Key: ****{apiKey.slice(-4)}
+            <button onClick={handleLogout} style={{ marginLeft: "10px" }}>
+              Log Out
+            </button>
+          </p>
           <div>
             <label>
               Select Bible Translation:
@@ -270,6 +310,9 @@ function BiblePassageImporter({ addPassage }) {
           )}
         </>
       )}
+      <button onClick={closeImporter} style={{ marginTop: "10px" }}>
+        Close
+      </button>
     </div>
   );
 }

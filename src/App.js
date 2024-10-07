@@ -10,6 +10,7 @@ import "./index.css";
 function App() {
   const [passages, setPassages] = useState([]);
   const [selectedPassageIndex, setSelectedPassageIndex] = useState(null);
+  const [showImporter, setShowImporter] = useState(false);
   const { theme, toggleTheme } = useContext(ThemeContext);
 
   useEffect(() => {
@@ -37,6 +38,14 @@ function App() {
     setSelectedPassageIndex(null);
   };
 
+  const openImporter = () => {
+    setShowImporter(true);
+  };
+
+  const closeImporter = () => {
+    setShowImporter(false);
+  };
+
   return (
     <div className="container">
       <button className="toggle-theme-btn" onClick={toggleTheme}>
@@ -45,13 +54,22 @@ function App() {
       <h1>Memorization App</h1>
       {selectedPassageIndex === null ? (
         <>
-          <TextInput addPassage={addPassage} />
-          <BiblePassageImporter addPassage={addPassage} />
-          <PassageSelector
-            passages={passages}
-            selectPassage={selectPassage}
-            deletePassage={deletePassage}
-          />
+          {!showImporter ? (
+            <>
+              <TextInput addPassage={addPassage} />
+              <button onClick={openImporter}>Import Passage</button>
+              <PassageSelector
+                passages={passages}
+                selectPassage={selectPassage}
+                deletePassage={deletePassage}
+              />
+            </>
+          ) : (
+            <BiblePassageImporter
+              addPassage={addPassage}
+              closeImporter={closeImporter}
+            />
+          )}
         </>
       ) : (
         <MemorizationPractice

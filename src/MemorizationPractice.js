@@ -4,36 +4,90 @@ import ProgressBar from "./ProgressBar";
 
 function MemorizationPractice({ passage, exitPractice }) {
   const [segments, setSegments] = useState([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
   const [revealedSegments, setRevealedSegments] = useState([]);
+  const [currentSegmentIndex, setCurrentSegmentIndex] = useState(0);
   const [incorrectGuesses, setIncorrectGuesses] = useState(0);
   const [flashColor, setFlashColor] = useState(null);
 
   useEffect(() => {
-    const tokenizePassage = (passage) => {
-      let segments = [];
-      let regex = /\b\w+\b[^\w\s]*/g;
-      let match;
-      let lastIndex = 0;
+    const tokenizePassage = (content) => {
+      const segments = [];
+      let currentIndex = 0;
 
-      while ((match = regex.exec(passage)) !== null) {
-        let start = match.index;
-        let end = regex.lastIndex;
+      const patterns = {
+        heading: /^(?<hashes>#+)\s*(?<headingText>[^\n]*)(?<newline>\n?)/m,
+        verseNumber: /^(?<verseNumber>\d+\.)/,
+        word: /^(?<word>[a-zA-Z]+(?:['’\-][a-zA-Z]+)*)/,
+        punctuation: /^(?<punctuation>[^\s\w]+)/,
+        whitespace: /^(?<whitespace>\s+)/,
+        newline: /^(?<newline>\n)/,
+      };
 
-        if (start > lastIndex) {
-          let preText = passage.slice(lastIndex, start);
-          segments.push({ type: "pre", text: preText });
+      while (currentIndex < content.length) {
+        const substring = content.slice(currentIndex);
+
+        // Heading
+        const headingMatch = substring.match(patterns.heading);
+        if (headingMatch) {
+          const { hashes, headingText, newline } = headingMatch.groups;
+          const level = hashes.length;
+          segments.push({
+            type: "heading",
+            text: headingText.trim() + (newline || ""),
+            level: level,
+          });
+          currentIndex += headingMatch[0].length;
+          continue;
         }
 
-        let word = match[0];
-        segments.push({ type: "word", text: word });
+        // Verse Number
+        const verseNumberMatch = substring.match(patterns.verseNumber);
+        if (verseNumberMatch) {
+          const { verseNumber } = verseNumberMatch.groups;
+          segments.push({ type: "punctuation", text: verseNumber });
+          currentIndex += verseNumber.length;
+          continue;
+        }
 
-        lastIndex = end;
-      }
+        // Word
+        const wordMatch = substring.match(patterns.word);
+        if (wordMatch) {
+          const { word } = wordMatch.groups;
+          segments.push({ type: "word", text: word });
+          currentIndex += word.length;
+          continue;
+        }
 
-      if (lastIndex < passage.length) {
-        let preText = passage.slice(lastIndex);
-        segments.push({ type: "pre", text: preText });
+        // Punctuation
+        const punctuationMatch = substring.match(patterns.punctuation);
+        if (punctuationMatch) {
+          const { punctuation } = punctuationMatch.groups;
+          segments.push({ type: "punctuation", text: punctuation });
+          currentIndex += punctuation.length;
+          continue;
+        }
+
+        // Whitespace
+        const whitespaceMatch = substring.match(patterns.whitespace);
+        if (whitespaceMatch) {
+          const { whitespace } = whitespaceMatch.groups;
+          segments.push({ type: "whitespace", text: whitespace });
+          currentIndex += whitespace.length;
+          continue;
+        }
+
+        // Newline
+        const newlineMatch = substring.match(patterns.newline);
+        if (newlineMatch) {
+          const { newline } = newlineMatch.groups;
+          segments.push({ type: "newline", text: newline });
+          currentIndex += newline.length;
+          continue;
+        }
+
+        // Unknown character
+        segments.push({ type: "unknown", text: substring[0] });
+        currentIndex += 1;
       }
 
       return segments;
@@ -42,13 +96,39 @@ function MemorizationPractice({ passage, exitPractice }) {
     const processedSegments = tokenizePassage(passage);
     setSegments(processedSegments);
 
-    const initialRevealedSegments = processedSegments.map((segment) =>
-      segment.type === "pre" ? segment.text : ""
-    );
+    // All segments are initially hidden
+    const initialRevealedSegments = processedSegments.map(() => "");
     setRevealedSegments(initialRevealedSegments);
-    setCurrentIndex(0);
+    setCurrentSegmentIndex(0);
     setIncorrectGuesses(0);
   }, [passage]);
+
+  useEffect(() => {
+    // Reveal non-guessable segments starting from currentSegmentIndex
+    if (segments.length === 0) return;
+
+    let index = currentSegmentIndex;
+    let updatedRevealedSegments = [...revealedSegments];
+    let indexChanged = false;
+
+    while (index < segments.length && segments[index].type !== "word") {
+      const segment = segments[index];
+      if (segment.type === "heading") {
+        // Render heading without '#' and apply appropriate heading level
+        updatedRevealedSegments[
+          index
+        ] = `<h${segment.level} class="heading">${segment.text}</h${segment.level}>`;
+      } else {
+        updatedRevealedSegments[index] = segment.text;
+      }
+      index += 1;
+      indexChanged = true;
+    }
+    if (indexChanged) {
+      setRevealedSegments(updatedRevealedSegments);
+      setCurrentSegmentIndex(index);
+    }
+  }, [currentSegmentIndex, segments, revealedSegments]);
 
   const handleInput = (e) => {
     const inputChar = e.key.toLowerCase();
@@ -57,40 +137,44 @@ function MemorizationPractice({ passage, exitPractice }) {
       return;
     }
 
-    let index = currentIndex;
-    while (index < segments.length && segments[index].type !== "word") {
-      index++;
-    }
+    let index = currentSegmentIndex;
 
     if (index >= segments.length) {
       return;
     }
 
-    const currentWordSegment = segments[index];
-    const firstLetter = currentWordSegment.text[0].toLowerCase();
+    const segment = segments[index];
 
-    if (inputChar === firstLetter) {
-      setRevealedSegments((prev) =>
-        prev.map((seg, i) => (i === index ? currentWordSegment.text : seg))
-      );
-      setIncorrectGuesses(0);
-      setCurrentIndex(index + 1);
-    } else {
-      setIncorrectGuesses((prev) => prev + 1);
-      flashScreen("red");
-      if (incorrectGuesses + 1 >= 3) {
-        setRevealedSegments((prev) =>
-          prev.map((seg, i) =>
-            i === index
-              ? `<span style="color: red;">${currentWordSegment.text}</span>`
-              : seg
-          )
-        );
+    if (segment.type === "word") {
+      const firstLetter = segment.text[0].toLowerCase();
+
+      if (inputChar === firstLetter) {
+        // Correct guess; reveal the word
+        setRevealedSegments((prev) => {
+          const updated = [...prev];
+          updated[index] = segment.text;
+          return updated;
+        });
         setIncorrectGuesses(0);
-        setCurrentIndex(index + 1);
+        setCurrentSegmentIndex(index + 1);
+      } else {
+        // Incorrect guess handling
+        setIncorrectGuesses((prev) => prev + 1);
+        flashScreen("red");
+
+        if (incorrectGuesses + 1 >= 3) {
+          // Reveal the word highlighted in red
+          setRevealedSegments((prev) => {
+            const updated = [...prev];
+            updated[index] = `<span style="color: red;">${segment.text}</span>`;
+            return updated;
+          });
+          setIncorrectGuesses(0);
+          setCurrentSegmentIndex(index + 1);
+        }
       }
+      e.preventDefault();
     }
-    e.preventDefault();
   };
 
   const flashScreen = (color) => {
@@ -99,34 +183,32 @@ function MemorizationPractice({ passage, exitPractice }) {
   };
 
   useEffect(() => {
-    document.addEventListener("keydown", handleInput);
+    const keyDownHandler = (e) => handleInput(e);
+    document.addEventListener("keydown", keyDownHandler);
     return () => {
-      document.removeEventListener("keydown", handleInput);
+      document.removeEventListener("keydown", keyDownHandler);
     };
-  });
+  }, [currentSegmentIndex, incorrectGuesses]);
 
   const totalWords = segments.filter(
     (segment) => segment.type === "word"
   ).length;
   const revealedWords = revealedSegments.filter(
-    (seg, index) => segments[index].type === "word" && seg !== ""
+    (text, i) => segments[i].type === "word" && text !== ""
   ).length;
-  const progressPercentage = ((revealedWords / totalWords) * 100).toFixed(2);
+  const progressPercentage =
+    totalWords > 0 ? ((revealedWords / totalWords) * 100).toFixed(2) : 0;
 
   return (
     <div
       style={{
-        backgroundColor: flashColor || "white",
+        backgroundColor: flashColor || "transparent",
         transition: "background-color 0.2s",
       }}
     >
       <h2>Memorization Practice</h2>
       <div
-        style={{
-          border: "1px solid #ccc",
-          padding: "10px",
-          minHeight: "100px",
-        }}
+        className="passage-display"
         dangerouslySetInnerHTML={{ __html: revealedSegments.join("") }}
       ></div>
       <ProgressBar progress={progressPercentage} />

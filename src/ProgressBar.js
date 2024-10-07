@@ -3,26 +3,14 @@ import React from "react";
 
 function ProgressBar({ progress }) {
   return (
-    <div style={{ marginTop: "10px" }}>
-      <div
-        style={{
-          backgroundColor: "#ccc",
-          width: "100%",
-          height: "20px",
-          borderRadius: "5px",
-        }}
-      >
+    <div className="progress-bar-container">
+      <div className="progress-bar">
         <div
-          style={{
-            backgroundColor: "#4caf50",
-            width: `${progress}%`,
-            height: "100%",
-            borderRadius: "5px",
-            transition: "width 0.2s",
-          }}
+          className="progress-bar-fill"
+          style={{ width: `${progress}%` }}
         ></div>
       </div>
-      <p>{progress}% completed</p>
+      <p>{progress}% Complete</p>
     </div>
   );
 }

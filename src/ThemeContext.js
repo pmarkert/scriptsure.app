@@ -1,5 +1,5 @@
 // ThemeContext.js
-import React, { createContext, useState } from "react";
+import React, { createContext, useState, useEffect } from "react";
 
 export const ThemeContext = createContext();
 
@@ -9,16 +9,21 @@ export const ThemeProvider = ({ children }) => {
 
   const [theme, setTheme] = useState(savedTheme);
 
+  useEffect(() => {
+    // Apply the theme class to the html element
+    document.documentElement.className = `theme-${theme}`;
+    // Save theme preference to localStorage
+    localStorage.setItem("theme", theme);
+  }, [theme]);
+
   const toggleTheme = () => {
     const newTheme = theme === "light" ? "dark" : "light";
     setTheme(newTheme);
-    // Save theme preference to localStorage
-    localStorage.setItem("theme", newTheme);
   };
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
-      <div className={`theme-${theme}`}>{children}</div>
+      {children}
     </ThemeContext.Provider>
   );
 };

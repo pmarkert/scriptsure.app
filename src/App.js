@@ -5,7 +5,7 @@ import PassageSelector from "./PassageSelector";
 import MemorizationPractice from "./MemorizationPractice";
 import { ThemeContext } from "./ThemeContext";
 import BiblePassageImporter from "./BiblePassageImporter";
-import "./index.css";
+import "./style.css";
 
 function App() {
   const [passages, setPassages] = useState([]);

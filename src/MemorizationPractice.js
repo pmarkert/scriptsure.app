@@ -1,5 +1,5 @@
 // MemorizationPractice.js
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import ProgressBar from "./ProgressBar";
 
 function MemorizationPractice({ passage, exitPractice }) {
@@ -8,6 +8,22 @@ function MemorizationPractice({ passage, exitPractice }) {
   const [currentSegmentIndex, setCurrentSegmentIndex] = useState(0);
   const [incorrectGuesses, setIncorrectGuesses] = useState(0);
   const [flashColor, setFlashColor] = useState(null);
+  const [spaceBarPressed, setSpaceBarPressed] = useState(false);
+
+  // Refs to hold the latest state values
+  const currentSegmentIndexRef = useRef(currentSegmentIndex);
+  const incorrectGuessesRef = useRef(incorrectGuesses);
+  const segmentsRef = useRef(segments);
+  const revealedSegmentsRef = useRef(revealedSegments);
+  const savedRevealedSegmentsRef = useRef([]);
+
+  useEffect(() => {
+    // Update refs when state changes
+    currentSegmentIndexRef.current = currentSegmentIndex;
+    incorrectGuessesRef.current = incorrectGuesses;
+    segmentsRef.current = segments;
+    revealedSegmentsRef.current = revealedSegments;
+  }, [currentSegmentIndex, incorrectGuesses, segments, revealedSegments]);
 
   useEffect(() => {
     const tokenizePassage = (content) => {
@@ -17,10 +33,10 @@ function MemorizationPractice({ passage, exitPractice }) {
       const patterns = {
         heading: /^(?<hashes>#+)\s*(?<headingText>[^\n]*)(?<newline>\n?)/m,
         verseNumber: /^(?<verseNumber>\d+\.)/,
+        newline: /^(?<newline>\n)/,
         word: /^(?<word>[a-zA-Z]+(?:['’\-][a-zA-Z]+)*)/,
         punctuation: /^(?<punctuation>[^\s\w]+)/,
-        whitespace: /^(?<whitespace>\s+)/,
-        newline: /^(?<newline>\n)/,
+        whitespace: /^(?<whitespace>[ \t]+)/,
       };
 
       while (currentIndex < content.length) {
@@ -46,6 +62,15 @@ function MemorizationPractice({ passage, exitPractice }) {
           const { verseNumber } = verseNumberMatch.groups;
           segments.push({ type: "punctuation", text: verseNumber });
           currentIndex += verseNumber.length;
+          continue;
+        }
+
+        // Newline
+        const newlineMatch = substring.match(patterns.newline);
+        if (newlineMatch) {
+          const { newline } = newlineMatch.groups;
+          segments.push({ type: "newline", text: newline });
+          currentIndex += newline.length;
           continue;
         }
 
@@ -76,15 +101,6 @@ function MemorizationPractice({ passage, exitPractice }) {
           continue;
         }
 
-        // Newline
-        const newlineMatch = substring.match(patterns.newline);
-        if (newlineMatch) {
-          const { newline } = newlineMatch.groups;
-          segments.push({ type: "newline", text: newline });
-          currentIndex += newline.length;
-          continue;
-        }
-
         // Unknown character
         segments.push({ type: "unknown", text: substring[0] });
         currentIndex += 1;
@@ -101,6 +117,12 @@ function MemorizationPractice({ passage, exitPractice }) {
     setRevealedSegments(initialRevealedSegments);
     setCurrentSegmentIndex(0);
     setIncorrectGuesses(0);
+
+    // Update refs
+    currentSegmentIndexRef.current = 0;
+    incorrectGuessesRef.current = 0;
+    segmentsRef.current = processedSegments;
+    revealedSegmentsRef.current = initialRevealedSegments;
   }, [passage]);
 
   useEffect(() => {
@@ -127,55 +149,12 @@ function MemorizationPractice({ passage, exitPractice }) {
     if (indexChanged) {
       setRevealedSegments(updatedRevealedSegments);
       setCurrentSegmentIndex(index);
+
+      // Update refs
+      currentSegmentIndexRef.current = index;
+      revealedSegmentsRef.current = updatedRevealedSegments;
     }
   }, [currentSegmentIndex, segments, revealedSegments]);
-
-  const handleInput = (e) => {
-    const inputChar = e.key.toLowerCase();
-
-    if (!/^[a-zA-Z]$/.test(inputChar)) {
-      return;
-    }
-
-    let index = currentSegmentIndex;
-
-    if (index >= segments.length) {
-      return;
-    }
-
-    const segment = segments[index];
-
-    if (segment.type === "word") {
-      const firstLetter = segment.text[0].toLowerCase();
-
-      if (inputChar === firstLetter) {
-        // Correct guess; reveal the word
-        setRevealedSegments((prev) => {
-          const updated = [...prev];
-          updated[index] = segment.text;
-          return updated;
-        });
-        setIncorrectGuesses(0);
-        setCurrentSegmentIndex(index + 1);
-      } else {
-        // Incorrect guess handling
-        setIncorrectGuesses((prev) => prev + 1);
-        flashScreen("red");
-
-        if (incorrectGuesses + 1 >= 3) {
-          // Reveal the word highlighted in red
-          setRevealedSegments((prev) => {
-            const updated = [...prev];
-            updated[index] = `<span style="color: red;">${segment.text}</span>`;
-            return updated;
-          });
-          setIncorrectGuesses(0);
-          setCurrentSegmentIndex(index + 1);
-        }
-      }
-      e.preventDefault();
-    }
-  };
 
   const flashScreen = (color) => {
     setFlashColor(color);
@@ -183,18 +162,131 @@ function MemorizationPractice({ passage, exitPractice }) {
   };
 
   useEffect(() => {
-    const keyDownHandler = (e) => handleInput(e);
+    const keyDownHandler = (e) => {
+      if (e.code === "Space") {
+        e.preventDefault();
+        setSpaceBarPressed(true);
+      } else {
+        const inputChar = e.key.toLowerCase();
+
+        if (!/^[a-zA-Z]$/.test(inputChar)) {
+          return;
+        }
+
+        let index = currentSegmentIndexRef.current;
+
+        if (index >= segmentsRef.current.length) {
+          return;
+        }
+
+        const segment = segmentsRef.current[index];
+
+        if (segment.type === "word") {
+          const firstLetter = segment.text[0].toLowerCase();
+
+          if (inputChar === firstLetter) {
+            // Correct guess; reveal the word
+            setRevealedSegments((prev) => {
+              const updated = [...prev];
+              updated[index] = segment.text;
+              revealedSegmentsRef.current = updated;
+              return updated;
+            });
+            setIncorrectGuesses(0);
+            currentSegmentIndexRef.current = index + 1;
+            setCurrentSegmentIndex(index + 1);
+          } else {
+            // Incorrect guess handling
+            setIncorrectGuesses((prev) => prev + 1);
+            incorrectGuessesRef.current += 1;
+            flashScreen("red");
+
+            if (incorrectGuessesRef.current >= 3) {
+              // Reveal the word highlighted in red
+              setRevealedSegments((prev) => {
+                const updated = [...prev];
+                updated[
+                  index
+                ] = `<span style="color: red;">${segment.text}</span>`;
+                revealedSegmentsRef.current = updated;
+                return updated;
+              });
+              setIncorrectGuesses(0);
+              incorrectGuessesRef.current = 0;
+              currentSegmentIndexRef.current = index + 1;
+              setCurrentSegmentIndex(index + 1);
+            }
+          }
+          e.preventDefault();
+        }
+      }
+    };
+
+    const keyUpHandler = (e) => {
+      if (e.code === "Space") {
+        e.preventDefault();
+        setSpaceBarPressed(false);
+      }
+    };
+
     document.addEventListener("keydown", keyDownHandler);
+    document.addEventListener("keyup", keyUpHandler);
+
     return () => {
       document.removeEventListener("keydown", keyDownHandler);
+      document.removeEventListener("keyup", keyUpHandler);
     };
-  }, [currentSegmentIndex, incorrectGuesses]);
+  }, []);
 
-  const totalWords = segments.filter(
-    (segment) => segment.type === "word"
-  ).length;
+  useEffect(() => {
+    if (spaceBarPressed) {
+      // Save the current revealedSegments if not already saved
+      if (savedRevealedSegmentsRef.current.length === 0) {
+        savedRevealedSegmentsRef.current = [...revealedSegmentsRef.current];
+      }
+
+      // Show hints up to the end of the current line
+      let index = currentSegmentIndexRef.current;
+      const updatedRevealedSegments = [...revealedSegmentsRef.current];
+
+      // Find the end of the current line
+      while (
+        index < segmentsRef.current.length &&
+        segmentsRef.current[index].type !== "newline"
+      ) {
+        const segment = segmentsRef.current[index];
+        if (updatedRevealedSegments[index] === "") {
+          if (segment.type === "word") {
+            updatedRevealedSegments[
+              index
+            ] = `<span style="color: gray;">${segment.text}</span>`;
+          } else {
+            updatedRevealedSegments[index] = segment.text;
+          }
+        }
+        index++;
+      }
+
+      setRevealedSegments(updatedRevealedSegments);
+      revealedSegmentsRef.current = updatedRevealedSegments;
+    } else {
+      // Restore the previous revealedSegments
+      if (savedRevealedSegmentsRef.current.length > 0) {
+        setRevealedSegments(savedRevealedSegmentsRef.current);
+        revealedSegmentsRef.current = savedRevealedSegmentsRef.current;
+        savedRevealedSegmentsRef.current = [];
+      }
+    }
+  }, [spaceBarPressed]);
+
+  const totalWords = segments.length
+    ? segments.filter((segment) => segment.type === "word").length
+    : 0;
   const revealedWords = revealedSegments.filter(
-    (text, i) => segments[i].type === "word" && text !== ""
+    (text, i) =>
+      segments[i].type === "word" &&
+      text !== "" &&
+      !text.includes("color: gray;")
   ).length;
   const progressPercentage =
     totalWords > 0 ? ((revealedWords / totalWords) * 100).toFixed(2) : 0;

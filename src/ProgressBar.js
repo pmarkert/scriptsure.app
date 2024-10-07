@@ -1,7 +1,7 @@
 // ProgressBar.js
 import React from "react";
 
-function ProgressBar({ progress }) {
+function ProgressBar({ progress, missed }) {
   return (
     <div className="progress-bar-container">
       <div className="progress-bar">
@@ -9,8 +9,11 @@ function ProgressBar({ progress }) {
           className="progress-bar-fill"
           style={{ width: `${progress}%` }}
         ></div>
+        <div
+          className="progress-bar-missed"
+          style={{ width: `${missed}%` }}
+        ></div>
       </div>
-      <p>{progress}% Complete</p>
     </div>
   );
 }

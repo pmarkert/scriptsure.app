@@ -10,12 +10,19 @@ function MemorizationPractice({ passage, exitPractice }) {
   const [flashColor, setFlashColor] = useState(null);
   const [spaceBarPressed, setSpaceBarPressed] = useState(false);
 
+  // New state variables for scoring
+  const [totalPoints, setTotalPoints] = useState(0);
+  const [earnedPoints, setEarnedPoints] = useState(0);
+  const [missedPoints, setMissedPoints] = useState(0);
+
   // Refs to hold the latest state values
   const currentSegmentIndexRef = useRef(currentSegmentIndex);
   const incorrectGuessesRef = useRef(incorrectGuesses);
   const segmentsRef = useRef(segments);
   const revealedSegmentsRef = useRef(revealedSegments);
   const savedRevealedSegmentsRef = useRef([]);
+  const earnedPointsRef = useRef(earnedPoints);
+  const missedPointsRef = useRef(missedPoints);
 
   useEffect(() => {
     // Update refs when state changes
@@ -23,7 +30,16 @@ function MemorizationPractice({ passage, exitPractice }) {
     incorrectGuessesRef.current = incorrectGuesses;
     segmentsRef.current = segments;
     revealedSegmentsRef.current = revealedSegments;
-  }, [currentSegmentIndex, incorrectGuesses, segments, revealedSegments]);
+    earnedPointsRef.current = earnedPoints;
+    missedPointsRef.current = missedPoints;
+  }, [
+    currentSegmentIndex,
+    incorrectGuesses,
+    segments,
+    revealedSegments,
+    earnedPoints,
+    missedPoints,
+  ]);
 
   useEffect(() => {
     const tokenizePassage = (content) => {
@@ -107,12 +123,22 @@ function MemorizationPractice({ passage, exitPractice }) {
     setRevealedSegments(initialRevealedSegments);
     setCurrentSegmentIndex(0);
     setIncorrectGuesses(0);
+    setEarnedPoints(0);
+    setMissedPoints(0);
 
     // Update refs
     currentSegmentIndexRef.current = 0;
     incorrectGuessesRef.current = 0;
     segmentsRef.current = processedSegments;
     revealedSegmentsRef.current = initialRevealedSegments;
+    earnedPointsRef.current = 0;
+    missedPointsRef.current = 0;
+
+    // Calculate total points
+    const totalWords = processedSegments.filter(
+      (segment) => segment.type === "word" || segment.type === "unknown"
+    ).length;
+    setTotalPoints(totalWords * 3);
   }, [passage]);
 
   useEffect(() => {
@@ -123,7 +149,11 @@ function MemorizationPractice({ passage, exitPractice }) {
     let updatedRevealedSegments = [...revealedSegments];
     let indexChanged = false;
 
-    while (index < segments.length && segments[index].type !== "word") {
+    while (
+      index < segments.length &&
+      segments[index].type !== "word" &&
+      segments[index].type !== "unknown"
+    ) {
       const segment = segments[index];
       if (segment.type === "heading") {
         // Render heading without '#' and apply appropriate heading level
@@ -171,28 +201,44 @@ function MemorizationPractice({ passage, exitPractice }) {
 
         const segment = segmentsRef.current[index];
 
-        if (segment.type === "word") {
-          const firstLetter = segment.text[0].toLowerCase();
+        if (segment.type === "word" || segment.type === "unknown") {
+          const expectedChar = segment.text.trim()[0].toLowerCase();
 
-          if (inputChar === firstLetter) {
-            // Correct guess; reveal the word
+          if (inputChar === expectedChar) {
+            // Correct guess; reveal the segment
             setRevealedSegments((prev) => {
               const updated = [...prev];
               updated[index] = segment.text;
               revealedSegmentsRef.current = updated;
               return updated;
             });
+
+            // Scoring
+            const misses = incorrectGuessesRef.current;
+            const pointsEarned = 3 - misses;
+
+            setEarnedPoints((prev) => prev + pointsEarned);
+            earnedPointsRef.current += pointsEarned;
+
+            // Reset incorrect guesses
             setIncorrectGuesses(0);
+            incorrectGuessesRef.current = 0;
+
             currentSegmentIndexRef.current = index + 1;
             setCurrentSegmentIndex(index + 1);
           } else {
             // Incorrect guess handling
             setIncorrectGuesses((prev) => prev + 1);
             incorrectGuessesRef.current += 1;
+
+            // Increment missedPoints by 1
+            setMissedPoints((prev) => prev + 1);
+            missedPointsRef.current += 1;
+
             flashScreen("red");
 
             if (incorrectGuessesRef.current >= 3) {
-              // Reveal the word highlighted in red
+              // Reveal the segment highlighted in red
               setRevealedSegments((prev) => {
                 const updated = [...prev];
                 updated[
@@ -201,6 +247,10 @@ function MemorizationPractice({ passage, exitPractice }) {
                 revealedSegmentsRef.current = updated;
                 return updated;
               });
+
+              // No points earned for this word (earnedPoints remains the same)
+
+              // Reset incorrect guesses
               setIncorrectGuesses(0);
               incorrectGuessesRef.current = 0;
               currentSegmentIndexRef.current = index + 1;
@@ -208,6 +258,10 @@ function MemorizationPractice({ passage, exitPractice }) {
             }
           }
           e.preventDefault();
+        } else {
+          // Skip non-word segments
+          currentSegmentIndexRef.current = index + 1;
+          setCurrentSegmentIndex(index + 1);
         }
       }
     };
@@ -246,10 +300,14 @@ function MemorizationPractice({ passage, exitPractice }) {
       ) {
         const segment = segmentsRef.current[index];
         if (updatedRevealedSegments[index] === "") {
-          if (segment.type === "word") {
+          if (segment.type === "word" || segment.type === "unknown") {
             updatedRevealedSegments[
               index
             ] = `<span style="color: gray;">${segment.text}</span>`;
+          } else if (segment.type === "heading") {
+            updatedRevealedSegments[
+              index
+            ] = `<h${segment.level} class="heading">${segment.text}</h${segment.level}>`;
           } else {
             updatedRevealedSegments[index] = segment.text;
           }
@@ -269,17 +327,10 @@ function MemorizationPractice({ passage, exitPractice }) {
     }
   }, [spaceBarPressed]);
 
-  const totalWords = segments.length
-    ? segments.filter((segment) => segment.type === "word").length
-    : 0;
-  const revealedWords = revealedSegments.filter(
-    (text, i) =>
-      segments[i].type === "word" &&
-      text !== "" &&
-      !text.includes("color: gray;")
-  ).length;
   const progressPercentage =
-    totalWords > 0 ? ((revealedWords / totalWords) * 100).toFixed(2) : 0;
+    totalPoints > 0 ? (earnedPoints / totalPoints) * 100 : 0;
+  const missedPercentage =
+    totalPoints > 0 ? (missedPoints / totalPoints) * 100 : 0;
 
   return (
     <div
@@ -293,7 +344,7 @@ function MemorizationPractice({ passage, exitPractice }) {
         className="passage-display"
         dangerouslySetInnerHTML={{ __html: revealedSegments.join("") }}
       ></div>
-      <ProgressBar progress={progressPercentage} />
+      <ProgressBar progress={progressPercentage} missed={missedPercentage} />
       <button onClick={exitPractice}>Exit Practice</button>
     </div>
   );

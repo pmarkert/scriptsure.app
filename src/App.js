@@ -4,27 +4,23 @@ import TextInput from "./TextInput";
 import PassageSelector from "./PassageSelector";
 import MemorizationPractice from "./MemorizationPractice";
 import { ThemeContext } from "./ThemeContext";
+import BiblePassageImporter from "./BiblePassageImporter";
 import "./index.css";
 
 function App() {
   const [passages, setPassages] = useState([]);
   const [selectedPassageIndex, setSelectedPassageIndex] = useState(null);
+  const { theme, toggleTheme } = useContext(ThemeContext);
 
-  // Load passages from localStorage on component mount
   useEffect(() => {
-    const storedPassages = localStorage.getItem("passages");
-    if (storedPassages) {
-      setPassages(JSON.parse(storedPassages));
-    }
+    const savedPassages = JSON.parse(localStorage.getItem("passages")) || [];
+    setPassages(savedPassages);
   }, []);
 
-  // Save passages to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem("passages", JSON.stringify(passages));
-  }, [passages]);
-
-  const addPassage = (passage) => {
-    setPassages([...passages, passage]);
+  const addPassage = (newPassage) => {
+    const updatedPassages = [...passages, newPassage];
+    setPassages(updatedPassages);
+    localStorage.setItem("passages", JSON.stringify(updatedPassages));
   };
 
   const selectPassage = (index) => {
@@ -34,13 +30,12 @@ function App() {
   const deletePassage = (index) => {
     const updatedPassages = passages.filter((_, i) => i !== index);
     setPassages(updatedPassages);
+    localStorage.setItem("passages", JSON.stringify(updatedPassages));
   };
 
   const exitPractice = () => {
     setSelectedPassageIndex(null);
   };
-
-  const { theme, toggleTheme } = useContext(ThemeContext);
 
   return (
     <div className="container">
@@ -51,6 +46,7 @@ function App() {
       {selectedPassageIndex === null ? (
         <>
           <TextInput addPassage={addPassage} />
+          <BiblePassageImporter addPassage={addPassage} />
           <PassageSelector
             passages={passages}
             selectPassage={selectPassage}

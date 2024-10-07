@@ -32,11 +32,10 @@ function MemorizationPractice({ passage, exitPractice }) {
 
       const patterns = {
         heading: /^(?<hashes>#+)\s*(?<headingText>[^\n]*)(?<newline>\n?)/m,
-        verseNumber: /^(?<verseNumber>\d+\.)/,
+        verseNumber: /^(?<verseNumber>\d+\.\s*)/,
         newline: /^(?<newline>\n)/,
-        word: /^(?<word>[a-zA-Z]+(?:['’\-][a-zA-Z]+)*)/,
-        punctuation: /^(?<punctuation>[^\s\w]+)/,
-        whitespace: /^(?<whitespace>[ \t]+)/,
+        word: /^(?<word>[a-zA-Z]+(?:['’-][a-zA-Z]+)*\s*)/,
+        punctuation: /^(?<punctuation>[^\w\n]+)/,
       };
 
       while (currentIndex < content.length) {
@@ -61,7 +60,7 @@ function MemorizationPractice({ passage, exitPractice }) {
         if (verseNumberMatch) {
           const { verseNumber } = verseNumberMatch.groups;
           segments.push({ type: "punctuation", text: verseNumber });
-          currentIndex += verseNumber.length;
+          currentIndex += verseNumberMatch[0].length;
           continue;
         }
 
@@ -70,7 +69,7 @@ function MemorizationPractice({ passage, exitPractice }) {
         if (newlineMatch) {
           const { newline } = newlineMatch.groups;
           segments.push({ type: "newline", text: newline });
-          currentIndex += newline.length;
+          currentIndex += newlineMatch[0].length;
           continue;
         }
 
@@ -79,7 +78,7 @@ function MemorizationPractice({ passage, exitPractice }) {
         if (wordMatch) {
           const { word } = wordMatch.groups;
           segments.push({ type: "word", text: word });
-          currentIndex += word.length;
+          currentIndex += wordMatch[0].length;
           continue;
         }
 
@@ -88,16 +87,7 @@ function MemorizationPractice({ passage, exitPractice }) {
         if (punctuationMatch) {
           const { punctuation } = punctuationMatch.groups;
           segments.push({ type: "punctuation", text: punctuation });
-          currentIndex += punctuation.length;
-          continue;
-        }
-
-        // Whitespace
-        const whitespaceMatch = substring.match(patterns.whitespace);
-        if (whitespaceMatch) {
-          const { whitespace } = whitespaceMatch.groups;
-          segments.push({ type: "whitespace", text: whitespace });
-          currentIndex += whitespace.length;
+          currentIndex += punctuationMatch[0].length;
           continue;
         }
 

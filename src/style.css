@@ -169,3 +169,22 @@ textarea {
 .passage-display .heading {
   color: var(--text-color);
 }
+
+ul {
+  list-style-type: none;
+  padding: 0;
+}
+
+li {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* Optional: Style for the stats modal or section */
+.passage-stats {
+  background-color: var(--input-bg-color);
+  color: var(--input-text-color);
+  padding: 20px;
+  border: 1px solid var(--border-color);
+  margin-top: 20px;
+}

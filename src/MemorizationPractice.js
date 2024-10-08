@@ -1,8 +1,9 @@
 // MemorizationPractice.js
 import React, { useState, useEffect, useRef } from "react";
 import ProgressBar from "./ProgressBar";
+import { calculateHealth } from "./utils";
 
-function MemorizationPractice({ passage, exitPractice }) {
+function MemorizationPractice({ passage, exitPractice, updatePassageStats }) {
   const [segments, setSegments] = useState([]);
   const [revealedSegments, setRevealedSegments] = useState([]);
   const [currentSegmentIndex, setCurrentSegmentIndex] = useState(0);
@@ -23,6 +24,47 @@ function MemorizationPractice({ passage, exitPractice }) {
   const savedRevealedSegmentsRef = useRef([]);
   const earnedPointsRef = useRef(earnedPoints);
   const missedPointsRef = useRef(missedPoints);
+
+  useEffect(() => {
+    if (currentSegmentIndex >= segments.length && segments.length > 0) {
+      // Practice session completed
+      const practiceStats = {
+        date: new Date().toISOString(),
+        completion: 100, // Since the user completed the passage
+        score: ((earnedPoints / totalPoints) * 100).toFixed(2),
+        errors: missedPoints,
+        hintsUsed: hintsUsedRef.current,
+      };
+
+      // Calculate new health rating
+      const newHealth = calculateHealth(passage.stats, practiceStats);
+
+      // Update passage stats
+      updatePassageStats(passage.name, practiceStats, newHealth);
+
+      // Optionally, display a summary or navigate back to the main screen
+      exitPractice();
+    }
+  }, [
+    currentSegmentIndex,
+    earnedPoints,
+    exitPractice,
+    passage.name,
+    passage.stats,
+    missedPoints,
+    totalPoints,
+    updatePassageStats,
+    segments,
+  ]);
+
+  // Track hints used
+  const hintsUsedRef = useRef(0);
+
+  useEffect(() => {
+    if (spaceBarPressed) {
+      hintsUsedRef.current += 1;
+    }
+  }, [spaceBarPressed]);
 
   useEffect(() => {
     // Update refs when state changes
@@ -115,7 +157,7 @@ function MemorizationPractice({ passage, exitPractice }) {
       return segments;
     };
 
-    const processedSegments = tokenizePassage(passage);
+    const processedSegments = tokenizePassage(passage.text);
     setSegments(processedSegments);
 
     // All segments are initially hidden

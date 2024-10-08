@@ -6,6 +6,7 @@ import MemorizationPractice from "./MemorizationPractice";
 import { ThemeContext } from "./ThemeContext";
 import BiblePassageImporter from "./BiblePassageImporter";
 import "./style.css";
+import { calculateHealth } from "./utils";
 
 function App() {
   const [passages, setPassages] = useState([]);
@@ -19,6 +20,22 @@ function App() {
   useEffect(() => {
     const savedPassages = JSON.parse(localStorage.getItem("passages")) || [];
     setPassages(savedPassages);
+  }, []);
+
+  useEffect(() => {
+    const savedPassages = JSON.parse(localStorage.getItem("passages")) || [];
+
+    // Update health ratings based on time decay
+    const updatedPassages = savedPassages.map((passage) => {
+      if (passage.stats) {
+        const newHealth = calculateHealth(passage.stats, { score: 0 });
+        passage.stats.health = newHealth;
+      }
+      return passage;
+    });
+
+    setPassages(updatedPassages);
+    localStorage.setItem("passages", JSON.stringify(updatedPassages));
   }, []);
 
   const addPassage = (newPassage) => {
@@ -64,6 +81,24 @@ function App() {
     setEditIndex(null);
   };
 
+  const updatePassageStats = (passageName, practiceStats, newHealth) => {
+    const updatedPassages = passages.map((passage) => {
+      if (passage.name === passageName) {
+        // Update stats
+        const updatedStats = {
+          ...passage.stats,
+          lastPracticed: practiceStats.date,
+          practices: [...(passage.stats?.practices || []), practiceStats],
+          health: newHealth,
+        };
+        return { ...passage, stats: updatedStats };
+      }
+      return passage;
+    });
+    setPassages(updatedPassages);
+    localStorage.setItem("passages", JSON.stringify(updatedPassages));
+  };
+
   const cancelEdit = () => {
     setPassageToEdit(null);
     setEditIndex(null);
@@ -103,9 +138,11 @@ function App() {
           )}
         </>
       ) : (
+        // App.js
         <MemorizationPractice
-          passage={passages[selectedPassageIndex].text}
+          passage={passages[selectedPassageIndex]}
           exitPractice={exitPractice}
+          updatePassageStats={updatePassageStats}
         />
       )}
     </div>

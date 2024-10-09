@@ -5,9 +5,15 @@ export const ThemeContext = createContext();
 
 export const ThemeProvider = ({ children }) => {
   // Check localStorage for saved theme preference
-  const savedTheme = localStorage.getItem("theme") || "light";
+  const savedTheme = localStorage.getItem("theme");
 
-  const [theme, setTheme] = useState(savedTheme);
+  // Determine system preference
+  const systemPreference = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+
+  // Use saved theme if available, otherwise use system preference
+  const defaultTheme = savedTheme || systemPreference;
+
+  const [theme, setTheme] = useState(defaultTheme);
 
   useEffect(() => {
     // Apply the theme class to the html element

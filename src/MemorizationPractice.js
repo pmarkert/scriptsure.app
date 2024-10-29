@@ -406,9 +406,9 @@ function MemorizationPractice({ passage, exitPractice, updatePassageStats }) {
         className="passage-display"
         dangerouslySetInnerHTML={{ __html: revealedSegments.join("") }}
       ></div>
-      <div ref={bottomRef} />
       <ProgressBar progress={progressPercentage} missed={missedPercentage} />
       <button onClick={exitPractice}>Exit Practice</button>
+      <div ref={bottomRef} />
     </div>
   );
 }

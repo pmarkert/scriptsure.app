@@ -25,6 +25,7 @@ function MemorizationPractice({ passage, exitPractice, updatePassageStats }) {
   const earnedPointsRef = useRef(earnedPoints);
   const missedPointsRef = useRef(missedPoints);
   const bottomRef = useRef(null);
+  const inputRef = useRef(null);
 
   useEffect(() => {
     if (currentSegmentIndex >= segments.length && segments.length > 0) {
@@ -376,6 +377,13 @@ function MemorizationPractice({ passage, exitPractice, updatePassageStats }) {
     }
   }, [spaceBarPressed]);
 
+  useEffect(() => {
+    // Focus the input on mount and whenever segments are updated to ensure keyboard visibility
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [segments]);
+
   const progressPercentage =
     totalPoints > 0 ? (earnedPoints / totalPoints) * 100 : 0;
   const missedPercentage =
@@ -389,6 +397,11 @@ function MemorizationPractice({ passage, exitPractice, updatePassageStats }) {
       }}
     >
       <h2>Memorization Practice</h2>
+      <input
+        ref={inputRef}
+        style={{ position: "absolute", opacity: 0, height: 0, width: 0 }}
+        aria-hidden="true"
+      />
       <div
         className="passage-display"
         dangerouslySetInnerHTML={{ __html: revealedSegments.join("") }}

@@ -109,7 +109,7 @@ function App() {
       <button className="toggle-theme-btn" onClick={toggleTheme}>
         Switch to {theme === "light" ? "Dark" : "Light"} Mode
       </button>
-      <h1>Memorization App</h1>
+      <h1>Scriptsure.app Memorization</h1>
       {selectedPassageIndex === null ? (
         <>
           {!showImporter ? (

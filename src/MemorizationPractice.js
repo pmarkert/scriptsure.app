@@ -24,6 +24,7 @@ function MemorizationPractice({ passage, exitPractice, updatePassageStats }) {
   const savedRevealedSegmentsRef = useRef([]);
   const earnedPointsRef = useRef(earnedPoints);
   const missedPointsRef = useRef(missedPoints);
+  const bottomRef = useRef(null);
 
   useEffect(() => {
     if (currentSegmentIndex >= segments.length && segments.length > 0) {
@@ -218,6 +219,12 @@ function MemorizationPractice({ passage, exitPractice, updatePassageStats }) {
     }
   }, [currentSegmentIndex, segments, revealedSegments]);
 
+  useEffect(() => {
+    if (bottomRef.current) {
+      bottomRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [revealedSegments]);
+
   const flashScreen = (color) => {
     setFlashColor(color);
     setTimeout(() => setFlashColor(null), 200);
@@ -386,6 +393,7 @@ function MemorizationPractice({ passage, exitPractice, updatePassageStats }) {
         className="passage-display"
         dangerouslySetInnerHTML={{ __html: revealedSegments.join("") }}
       ></div>
+      <div ref={bottomRef} />
       <ProgressBar progress={progressPercentage} missed={missedPercentage} />
       <button onClick={exitPractice}>Exit Practice</button>
     </div>

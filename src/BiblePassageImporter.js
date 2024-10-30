@@ -1,5 +1,5 @@
 // BiblePassageImporter.js
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 
 function BiblePassageImporter({ addPassage, closeImporter }) {
   const [apiKey, setApiKey] = useState("");
@@ -15,7 +15,7 @@ function BiblePassageImporter({ addPassage, closeImporter }) {
   const baseUrl = "https://api.scripture.api.bible/v1/";
 
   // Function to call the API
-  const callAPI = async (serviceUrl) => {
+  const callAPI = useCallback(async (serviceUrl) => {
     try {
       const response = await fetch(baseUrl + serviceUrl, {
         headers: {
@@ -35,7 +35,7 @@ function BiblePassageImporter({ addPassage, closeImporter }) {
       console.error(err);
       return null;
     }
-  };
+  }, [baseUrl, apiKey, setError ]);
 
   // Load API key from localStorage on mount
   useEffect(() => {
@@ -78,7 +78,7 @@ function BiblePassageImporter({ addPassage, closeImporter }) {
       }
     };
     fetchBibles();
-  }, [apiKey]);
+  }, [apiKey, callAPI]);
 
   // Fetch Books when a Bible is selected
   useEffect(() => {
@@ -90,7 +90,7 @@ function BiblePassageImporter({ addPassage, closeImporter }) {
       }
     };
     fetchBooks();
-  }, [selectedBible]);
+  }, [callAPI, selectedBible]);
 
   // Fetch Chapters when a Book is selected
   useEffect(() => {
@@ -104,48 +104,48 @@ function BiblePassageImporter({ addPassage, closeImporter }) {
       }
     };
     fetchChapters();
-  }, [selectedBible, selectedBook]);
-
-  // Parse items recursively to convert to Markdown
-  const parseItem = (item) => {
-    let content = "";
-
-    // Check for section/title
-    if (item.name === "para" && item.attrs?.style === "s1") {
-      content += "\n## " + (item.items?.[0]?.text || "") + "\n";
-    }
-    // Verse number
-    else if (item.name === "verse") {
-      content += "\n" + (item.attrs?.number || "") + ". ";
-    } else if (item.attrs?.style === "r") {
-      // Do nothing for references
-    } else if (item.text) {
-      content += item.text.trim() + " ";
-      if (item.items) {
-        for (const subItem of item.items) {
-          content += parseItem(subItem);
-        }
-      }
-    } else {
-      // Recurse into child items
-      if (item.items) {
-        for (const subItem of item.items) {
-          content += parseItem(subItem);
-        }
-      }
-    }
-    return content;
-  };
+  }, [callAPI, selectedBible, selectedBook]);
 
   // Reformat the passage content into Markdown
-  const reformatToMarkdown = (passage) => {
+  const reformatToMarkdown = useCallback((passage) => {
+    // Parse items recursively to convert to Markdown
+    const parseItem = (item) => {
+      let content = "";
+
+      // Check for section/title
+      if (item.name === "para" && item.attrs?.style === "s1") {
+        content += "\n## " + (item.items?.[0]?.text || "") + "\n";
+      }
+      // Verse number
+      else if (item.name === "verse") {
+        content += "\n" + (item.attrs?.number || "") + ". ";
+      } else if (item.attrs?.style === "r") {
+        // Do nothing for references
+      } else if (item.text) {
+        content += item.text.trim() + " ";
+        if (item.items) {
+          for (const subItem of item.items) {
+            content += parseItem(subItem);
+          }
+        }
+      } else {
+        // Recurse into child items
+        if (item.items) {
+          for (const subItem of item.items) {
+            content += parseItem(subItem);
+          }
+        }
+      }
+      return content;
+    };
+
     let content = "# " + passage.reference + "\n";
 
     for (const item of passage.content) {
       content += parseItem(item);
     }
     return content.trim();
-  };
+  }, [ ]);
 
   // Load Passage when a Chapter is selected
   useEffect(() => {
@@ -162,7 +162,7 @@ function BiblePassageImporter({ addPassage, closeImporter }) {
       }
     };
     fetchPassage();
-  }, [selectedBible, selectedChapter]);
+  }, [callAPI, reformatToMarkdown, selectedBible, selectedChapter]);
 
   const handleImportPassage = () => {
     if (passageText.trim() === "") {

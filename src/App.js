@@ -104,6 +104,30 @@ function App() {
     setEditIndex(null);
   };
 
+  const exportPassages = () => {
+    const passagesJSON = JSON.stringify(passages);
+    navigator.clipboard.writeText(passagesJSON).then(() => {
+      alert("Passages copied to clipboard");
+    });
+  };
+
+  const importPassages = () => {
+    navigator.clipboard.readText().then((text) => {
+      try {
+        const importedPassages = JSON.parse(text);
+        if (Array.isArray(importedPassages)) {
+          setPassages(importedPassages);
+          localStorage.setItem("passages", JSON.stringify(importedPassages));
+          alert("Passages imported successfully");
+        } else {
+          alert("Invalid format: Expected an array of passages");
+        }
+      } catch (error) {
+        alert("Failed to import passages: Invalid JSON");
+      }
+    });
+  };
+
   return (
     <div className="container">
       <button className="toggle-theme-btn" onClick={toggleTheme}>
@@ -112,6 +136,8 @@ function App() {
       <h1>Scriptsure.app Memorization</h1>
       {selectedPassageIndex === null ? (
         <>
+          <button onClick={exportPassages}>Export</button>
+          <button onClick={importPassages}>Import</button>
           {!showImporter ? (
             <>
               <TextInput
@@ -138,7 +164,6 @@ function App() {
           )}
         </>
       ) : (
-        // App.js
         <MemorizationPractice
           passage={passages[selectedPassageIndex]}
           exitPractice={exitPractice}
@@ -150,3 +175,4 @@ function App() {
 }
 
 export default App;
+

@@ -1,0 +1,26 @@
+name: Deploy to AWS S3
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v1
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          audience: sts.amazonaws.com
+          aws-region: us-east-1
+          role-to-assume: arn:aws:iam::159625156332:role/GH
+        
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v4.1.0
+
+      - name: Deploy static site to S3 bucket
+        run: npm run deploy
